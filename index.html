@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Command — a game of hidden rank</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg:#12160f; --board-dark:#2f3b28; --board-light:#3d4a33;
+    --parchment:#e8e2d0; --parchment-dim:#c3bda8;
+    --brass:#c9a24b; --brass-dim:#8f7433;
+    --red:#a5432f; --blue:#3f6a8a; --ink:#1a1e14; --line:#4a5840; --panel:#1b2114;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--parchment);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    min-height:100vh;padding:24px 16px 60px;}
+  .wrap{max-width:1180px;margin:0 auto}
+  header.top{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:2px solid var(--brass-dim);padding-bottom:14px;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+  h1{font-size:30px;font-weight:600;letter-spacing:.5px}
+  h1 .sub{display:block;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--brass);
+    font-family:"SF Mono",ui-monospace,"Cascadia Mono",monospace;margin-top:4px;font-weight:400;}
+  .status-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .dot{width:9px;height:9px;border-radius:50%;background:#6f7a5f;display:inline-block;margin-right:7px;vertical-align:middle}
+  .dot.amber{background:#d4a24b} .dot.green{background:#6fa04b} .dot.red{background:#c0553f}
+  .conn-label{font-family:"SF Mono",ui-monospace,monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--parchment-dim)}
+  .turn-badge{font-family:"SF Mono",ui-monospace,monospace;font-size:13px;padding:8px 16px;
+    border:1px solid var(--line);border-radius:2px;letter-spacing:1px;text-transform:uppercase;background:var(--panel);}
+  .turn-badge b{color:var(--brass)}
+  .layout{display:grid;grid-template-columns:1fr 330px;gap:24px;align-items:start}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+  .board-frame{background:#20281a;border:1px solid var(--line);padding:14px;border-radius:3px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5),inset 0 0 60px rgba(0,0,0,.3);}
+  .board{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;aspect-ratio:9/8;width:100%}
+  .cell{position:relative;background:var(--board-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s}
+  .cell.light{background:var(--board-light)}
+  .cell:hover{background:#4c5b3f}
+  .cell.sel{outline:3px solid var(--brass);outline-offset:-3px;z-index:2}
+  .cell.move::after{content:"";width:26%;height:26%;border-radius:50%;background:rgba(201,162,75,.55)}
+  .cell.attack::after{content:"";position:absolute;inset:0;border:3px solid var(--red);pointer-events:none}
+  .piece{width:84%;height:84%;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    user-select:none;box-shadow:0 2px 6px rgba(0,0,0,.4);position:relative;font-family:"SF Mono",ui-monospace,monospace;}
+  .piece.blue{background:linear-gradient(160deg,#4a7ba0,#33566f);border:1px solid #5a8cb0}
+  .piece.red{background:linear-gradient(160deg,#b8503a,#843525);border:1px solid #c86048}
+  .piece.concealed{background:linear-gradient(160deg,#4a5a3c,#39472c);border:1px solid #6d7d5c}
+  .piece.focused{outline:2px solid var(--brass);outline-offset:1px}
+  .piece svg{width:52%;height:52%}
+  .piece .lbl{font-size:8px;letter-spacing:.3px;color:rgba(255,255,255,.85);margin-top:1px;text-align:center;line-height:1}
+  .piece.concealed svg.crest{width:58%;height:58%;min-width:14px;min-height:14px;opacity:.95;display:block;flex:0 0 auto}
+  .badge{position:absolute;bottom:1px;right:2px;font-size:8px;color:#0d1108;background:var(--brass);
+    border-radius:2px;padding:0 3px;line-height:1.4;font-weight:700}
+  .badge.one{background:var(--brass);color:#0d1108}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-bottom:20px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--brass);
+    font-family:"SF Mono",ui-monospace,monospace;font-weight:500;padding:12px 14px;border-bottom:1px solid var(--line);background:#161b10;}
+  .panel .body{padding:14px;font-size:13px;line-height:1.5;color:var(--parchment-dim)}
+  .hint{font-size:11px;color:var(--parchment-dim);font-family:"SF Mono",ui-monospace,monospace;line-height:1.5}
+
+  .roster{display:flex;flex-direction:column;gap:3px;max-height:340px;overflow-y:auto}
+  .rs-row{display:flex;align-items:center;gap:9px;font-size:11px;font-family:"SF Mono",ui-monospace,monospace;
+    padding:5px 6px;border-radius:2px;cursor:pointer;border:1px solid transparent;transition:.1s}
+  .rs-row:hover{background:#141910}
+  .rs-row.active{border-color:var(--brass);background:#1e2415}
+  .rs-row.done{opacity:.34;cursor:default}
+  .rs-row .ins{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .rs-row .ins svg{width:15px;height:15px}
+  .rs-row .nm{flex:1}
+  .rs-row .ct{color:var(--brass);font-size:10px;min-width:26px;text-align:right}
+  .setup-bar{font-size:11px;font-family:"SF Mono",ui-monospace,monospace;color:var(--parchment-dim);
+    margin-bottom:10px;line-height:1.5}
+  .setup-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .cell.zone{outline:1px dashed rgba(201,162,75,.35);outline-offset:-2px}
+  .lay-sec{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .lay-h{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--brass);
+    font-family:"SF Mono",ui-monospace,monospace;margin-bottom:7px}
+  .lay-row{display:flex;align-items:center;gap:6px;font-size:11px;font-family:"SF Mono",ui-monospace,monospace;
+    padding:4px 0}
+  .lay-row .lname{flex:1;cursor:pointer;color:var(--parchment-dim)}
+  .lay-row .lname:hover{color:var(--parchment)}
+  .lay-row.builtin .lname::before{content:"\2726 ";color:var(--brass)}
+  .lay-x{cursor:pointer;color:#6f7a5f;padding:0 4px}
+  .lay-x:hover{color:#e08a76}
+  .lay-save{display:flex;gap:6px;margin-top:8px}
+  .lay-save input{flex:1;background:#0d1108;color:var(--parchment);border:1px solid var(--line);
+    font-family:"SF Mono",ui-monospace,monospace;font-size:11px;padding:5px 7px;border-radius:2px}
+  .lay-empty{font-size:10px;color:#6f7a5f;font-style:italic;font-family:"SF Mono",ui-monospace,monospace;padding:2px 0}
+  .cl-head{font-size:11px;font-family:"SF Mono",ui-monospace,monospace;color:var(--parchment);margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .cl-loc{color:var(--brass)}
+  .cl-list{display:flex;flex-direction:column;gap:3px}
+  .cl-row{display:flex;align-items:center;gap:9px;font-size:11px;font-family:"SF Mono",ui-monospace,monospace;
+    padding:4px 6px;border-radius:2px;cursor:pointer;transition:background .1s}
+  .cl-row:hover{background:#141910}
+  .cl-row.off{opacity:.32}
+  .cl-row input{accent-color:var(--brass);width:14px;height:14px;flex-shrink:0;cursor:pointer}
+  .cl-row .ins{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .cl-row .ins svg{width:15px;height:15px}
+  .cl-row .nm{flex:1}
+  .cl-row .ct{color:#6f7a5f;font-size:10px}
+  .cl-actions{display:flex;gap:8px;margin-top:12px}
+
+  .log{max-height:150px;overflow-y:auto;font-family:"SF Mono",ui-monospace,monospace;font-size:11px;line-height:1.7}
+  .log div{padding:2px 0;border-bottom:1px dotted #2a331e}
+  .log .win{color:var(--brass)} .log .red{color:#e08a76} .log .blue{color:#8fbde0}
+
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:10px;font-family:"SF Mono",ui-monospace,monospace;color:var(--parchment-dim)}
+  .legend .li{display:flex;align-items:center;gap:6px;padding:2px 0}
+  .legend .ins{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .legend .ins svg{width:14px;height:14px}
+
+  button.btn{font-family:"SF Mono",ui-monospace,monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    padding:9px 14px;border:1px solid var(--brass-dim);background:transparent;color:var(--brass);cursor:pointer;border-radius:2px;transition:.15s}
+  button.btn:hover{background:var(--brass-dim);color:var(--ink)}
+  button.btn.solid{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+  button.btn.small{padding:6px 10px;font-size:10px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+
+  .overlay{position:fixed;inset:0;background:rgba(10,12,8,.86);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+  .overlay .card{background:var(--panel);border:1px solid var(--brass-dim);border-radius:4px;max-width:460px;width:100%;
+    padding:28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .overlay h3{font-size:22px;margin-bottom:12px}
+  .overlay p{font-size:13px;color:var(--parchment-dim);line-height:1.6;margin-bottom:10px;font-family:"SF Mono",ui-monospace,monospace}
+  .overlay .big{font-size:15px;color:var(--brass);margin:16px 0}
+  .code-box{font-family:"SF Mono",ui-monospace,monospace;font-size:34px;letter-spacing:8px;color:var(--brass);
+    background:#0d1108;border:1px solid var(--line);border-radius:3px;padding:14px;margin:16px 0}
+  .menu-btns{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+  .code-input{font-family:"SF Mono",ui-monospace,monospace;font-size:26px;letter-spacing:6px;text-align:center;
+    width:100%;padding:12px;background:#0d1108;color:var(--parchment);border:1px solid var(--line);border-radius:3px;margin:14px 0}
+  .hidden{display:none!important}
+  .err{color:#e08a76;font-size:12px;font-family:"SF Mono",ui-monospace,monospace;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Field Command<span class="sub">a game of hidden rank · alpha</span></h1>
+    <div class="status-wrap">
+      <span class="conn-label"><span class="dot" id="statusDot"></span><span id="statusText">Local</span></span>
+      <div class="turn-badge">Turn: <b id="turnLabel">BLUE</b></div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="board-frame"><div class="board" id="board"></div></div>
+
+    <div>
+      <div class="panel">
+        <h2 id="panelTitle">Deduction</h2>
+        <div class="body" id="deductionBody">
+          <div class="hint">Click an enemy piece to open a checklist of every rank it could be. Uncheck ranks you rule out as you learn from challenges. Your deductions are private to you.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Match</h2>
+        <div class="body">
+          <div class="controls" id="matchControls">
+            <button class="btn solid" onclick="game.showMenu()">Play online / new match</button>
+          </div>
+          <div class="hint" id="matchHint" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Field log</h2>
+        <div class="body"><div class="log" id="log"></div></div>
+      </div>
+
+      <div class="panel">
+        <h2>Rank order</h2>
+        <div class="body">
+          <div class="legend" id="legend"></div>
+          <div style="margin-top:10px;font-size:10px;font-family:'SF Mono',monospace;color:#6f7a5f;line-height:1.6">
+            Spy beats all officers but loses to a Private. Private beats the Spy. Equal ranks trade off. Capture the Flag — or march yours to the far row — to win. Challenges reveal the outcome only, never the rank.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="card" id="overlayCard"></div></div>
+
+<script>
+/* ===== RANK DATA — mechanics only. Original geometric insignia. ===== */
+const RANKS=[
+  {key:'FG',short:'GEN★5',power:15,count:1},
+  {key:'G4',short:'GEN★4',power:14,count:1},
+  {key:'G3',short:'GEN★3',power:13,count:1},
+  {key:'G2',short:'GEN★2',power:12,count:1},
+  {key:'G1',short:'GEN★1',power:11,count:1},
+  {key:'CO',short:'COL',  power:10,count:1},
+  {key:'LC',short:'LTC',  power:9, count:1},
+  {key:'MA',short:'MAJ',  power:8, count:1},
+  {key:'CP',short:'CPT',  power:7, count:1},
+  {key:'1L',short:'1LT',  power:6, count:1},
+  {key:'2L',short:'2LT',  power:5, count:1},
+  {key:'SG',short:'SGT',  power:4, count:1},
+  {key:'PV',short:'PVT',  power:2, count:6},
+  {key:'SP',short:'SPY',  power:3, count:2},
+  {key:'FL',short:'FLAG', power:1, count:1},
+];
+function insignia(key){
+  const s='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">';
+  const star=(cx,cy,r)=>{let p='';for(let i=0;i<5;i++){const a=-Math.PI/2+i*2*Math.PI/5;const a2=a+Math.PI/5;p+=(i?'L':'M')+(cx+r*Math.cos(a)).toFixed(1)+' '+(cy+r*Math.sin(a)).toFixed(1)+'L'+(cx+r*0.4*Math.cos(a2)).toFixed(1)+' '+(cy+r*0.4*Math.sin(a2)).toFixed(1);}return '<path d="'+p+'Z" fill="#fff"/>';};
+  const bar=(y)=>'<rect x="5" y="'+y+'" width="14" height="2.2" fill="#fff" stroke="none"/>';
+  const chev=(y)=>'<path d="M6 '+(y+4)+'L12 '+y+'L18 '+(y+4)+'" />';
+  switch(key){
+    case 'FG': return s+star(6,8,3)+star(12,6,3)+star(18,8,3)+star(9,13,3)+star(15,13,3)+'</svg>';
+    case 'G4': return s+star(7,8,3)+star(17,8,3)+star(7,15,3)+star(17,15,3)+'</svg>';
+    case 'G3': return s+star(12,7,3.2)+star(7,15,3)+star(17,15,3)+'</svg>';
+    case 'G2': return s+star(8,11,3.4)+star(16,11,3.4)+'</svg>';
+    case 'G1': return s+star(12,11,4)+'</svg>';
+    case 'CO': return s+'<path d="M12 4 L14 10 L12 12 L10 10 Z" fill="#fff" stroke="none"/><path d="M12 20 L14 14 L12 12 L10 14 Z" fill="#fff" stroke="none"/></svg>';
+    case 'LC': return s+'<path d="M12 5 L13.5 10 L12 11.5 L10.5 10 Z" fill="#fff" stroke="none"/><path d="M12 19 L13.5 14 L12 12.5 L10.5 14 Z" fill="#fff" stroke="none"/></svg>';
+    case 'MA': return s+bar(7)+bar(15)+'</svg>';
+    case 'CP': return s+bar(6)+bar(11)+bar(16)+'</svg>';
+    case '1L': return s+bar(8)+bar(14)+'</svg>';
+    case '2L': return s+bar(11)+'</svg>';
+    case 'SG': return s+chev(8)+chev(13)+'</svg>';
+    case 'PV': return s+chev(10)+'</svg>';
+    case 'SP': return s+'<circle cx="12" cy="9" r="3.2"/><path d="M7 20 C7 15 17 15 17 20"/></svg>';
+    case 'FL': return s+'<path d="M8 4 V20" stroke-width="1.6"/><path d="M8 5 H18 L15 8 L18 11 H8 Z" fill="#fff" stroke="none"/></svg>';
+  }
+  return s+'</svg>';
+}
+const CREST='<svg viewBox="0 0 24 24" class="crest" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.5 L20.5 5.5 V12 C20.5 17.2 12 21.5 12 21.5 C12 21.5 3.5 17.2 3.5 12 V5.5 Z" fill="rgba(201,162,75,0.22)" stroke="#c9a24b" stroke-width="1.6" stroke-linejoin="round"/><text x="12" y="15.5" text-anchor="middle" font-size="9" font-weight="700" fill="#e8e2d0" font-family="monospace">?</text></svg>';
+const BUILTIN_LAYOUTS={"Balanced Line":[[0,0,"FL"],[0,1,"G1"],[0,2,"FG"],[0,3,"G4"],[0,4,"G3"],[0,5,"G2"],[0,6,"CO"],[0,7,"LC"],[0,8,"MA"],[1,0,"CP"],[1,1,"1L"],[1,2,"2L"],[1,3,"SG"],[1,4,"SP"],[1,5,"SP"],[1,6,"PV"],[1,7,"PV"],[1,8,"PV"],[2,3,"PV"],[2,4,"PV"],[2,5,"PV"]],"Flag Fortress":[[0,0,"G3"],[0,1,"FG"],[0,2,"G4"],[0,3,"FL"],[0,4,"G2"],[0,5,"G1"],[0,6,"CO"],[0,7,"LC"],[0,8,"MA"],[1,0,"PV"],[1,1,"PV"],[1,2,"PV"],[1,3,"SP"],[1,4,"PV"],[1,5,"SP"],[1,6,"PV"],[1,7,"CP"],[1,8,"1L"],[2,3,"PV"],[2,4,"2L"],[2,5,"SG"]],"Spy Ambush":[[0,0,"MA"],[0,1,"LC"],[0,2,"CO"],[0,3,"G1"],[0,4,"G2"],[0,5,"G3"],[0,6,"G4"],[0,7,"FG"],[0,8,"FL"],[1,0,"SG"],[1,1,"2L"],[1,2,"1L"],[1,3,"CP"],[1,4,"PV"],[1,5,"PV"],[1,6,"PV"],[1,7,"PV"],[1,8,"PV"],[2,3,"SP"],[2,4,"SP"],[2,5,"PV"]]};
+
+const ROWS=8, COLS=9, RED='red', BLUE='blue';
+const shortOf=k=>RANKS.find(r=>r.key===k).short;
+
+const game={
+  board:[], turn:BLUE, sel:null, moves:[], gameOver:false,
+  phase:'play', setupColor:BLUE, pool:null, selRank:null, _idc:0,
+  mySetup:null, oppSetup:null, setupSent:false,
+  mode:'local',            // 'local' | 'online'
+  myColor:BLUE,            // in online mode: this client's army
+  peer:null, conn:null,
+  checklists:{blue:{}, red:{}},   // per-viewer: pieceId -> Set(possible rank keys)
+  focusedId:null,
+
+  init(){ this.buildLegend(); this.showMenu(); },
+
+  /* ---------- board setup ---------- */
+  dealBoard(){
+    const board=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    let idc=0;
+    const army=(owner)=>{const ps=[];RANKS.forEach(r=>{for(let i=0;i<r.count;i++)ps.push({id:'p'+(idc++),owner,rank:r.key,power:r.power});});return ps;};
+    const place=(ps,rows)=>{const slots=[];rows.forEach(r=>{for(let c=0;c<COLS;c++)slots.push([r,c]);});
+      for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
+      ps.forEach((p,i)=>{const[r,c]=slots[i];board[r][c]=p;});};
+    place(army(BLUE),[5,6,7]); place(army(RED),[0,1,2]);
+    return board;
+  },
+
+  emptyBoard(){ return Array.from({length:ROWS},()=>Array(COLS).fill(null)); },
+
+  homeRows(color){ return color===BLUE?[5,6,7]:[0,1,2]; },
+
+  freshPool(){ const p={}; RANKS.forEach(r=>p[r.key]=r.count); return p; },
+
+  startLocal(){
+    this.mode='local'; this.myColor=BLUE;
+    this.board=this.emptyBoard(); this.turn=BLUE; this.gameOver=false;
+    this.sel=null; this.moves=[]; this.focusedId=null;
+    this.checklists={blue:{},red:{}};
+    document.getElementById('log').innerHTML='';
+    this.teardownPeer();
+    this.setStatus('local','Pass & play');
+    this.phase='setup'; this.setupColor=BLUE;
+    this.pool={blue:this.freshPool(), red:this.freshPool()};
+    this.selRank=null;
+    document.getElementById('matchHint').textContent='Deployment phase.';
+    this.hideOverlay();
+    this.showSetupIntro(BLUE);
+  },
+
+  showSetupIntro(color){
+    this.showOverlay(`
+      <h3>${color.toUpperCase()} — deploy your army</h3>
+      <p>Place all 21 pieces in your three home rows. Pick a rank from the roster, then click a square. Click a placed piece to pick it back up.</p>
+      <p style="color:var(--brass)">Hide your Flag well. Where you put your Spies decides most games.</p>
+      <button class="btn solid" onclick="game.hideOverlay();game.render();game.renderSidePanel();">Begin deployment</button>`);
+  },
+
+  /* ---------- setup phase ---------- */
+  pickRank(key){
+    if(this.pool[this.setupColor][key]<=0) return;
+    this.selRank = this.selRank===key ? null : key;
+    this.renderSidePanel();
+  },
+
+  placeAt(r,c){
+    const color=this.setupColor;
+    if(!this.homeRows(color).includes(r)) return;
+    const existing=this.board[r][c];
+    if(existing){                       // pick back up
+      this.pool[color][existing.rank]++;
+      this.board[r][c]=null;
+      this.render(); this.renderSidePanel(); return;
+    }
+    if(!this.selRank) return;
+    if(this.pool[color][this.selRank]<=0) return;
+    const rk=RANKS.find(x=>x.key===this.selRank);
+    this.board[r][c]={id:'p'+(this._idc++),owner:color,rank:rk.key,power:rk.power};
+    this.pool[color][this.selRank]--;
+    if(this.pool[color][this.selRank]<=0) this.selRank=null;
+    this.render(); this.renderSidePanel();
+  },
+
+  autoFill(){
+    const color=this.setupColor;
+    const slots=[];
+    this.homeRows(color).forEach(r=>{for(let c=0;c<COLS;c++) if(!this.board[r][c]) slots.push([r,c]);});
+    for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
+    const left=[]; RANKS.forEach(rk=>{for(let i=0;i<this.pool[color][rk.key];i++) left.push(rk);});
+    left.forEach((rk,i)=>{ if(!slots[i]) return;
+      const[r,c]=slots[i];
+      this.board[r][c]={id:'p'+(this._idc++),owner:color,rank:rk.key,power:rk.power};
+      this.pool[color][rk.key]--; });
+    this.selRank=null; this.render(); this.renderSidePanel();
+  },
+
+  clearSetup(){
+    const color=this.setupColor;
+    this.homeRows(color).forEach(r=>{for(let c=0;c<COLS;c++){
+      const p=this.board[r][c];
+      if(p&&p.owner===color){ this.pool[color][p.rank]++; this.board[r][c]=null; }
+    }});
+    this.selRank=null; this.render(); this.renderSidePanel();
+  },
+
+  placedCount(color){ return 21 - Object.values(this.pool[color]).reduce((a,b)=>a+b,0); },
+
+  confirmSetup(){
+    const color=this.setupColor;
+    if(this.placedCount(color)<21) return;
+    if(this.mode==='online'){
+      const mine=[];
+      this.homeRows(color).forEach(r=>{for(let c=0;c<COLS;c++){const p=this.board[r][c];if(p)mine.push({r,c,rank:p.rank});}});
+      this.mySetup=mine; this.setupSent=true;
+      if(this.conn&&this.conn.open) this.conn.send({type:'setup', pieces:mine});
+      if(this.oppSetup){ this.beginPlayOnline(); }
+      else this.showOverlay(`<h3>Deployment locked in</h3><p>Waiting for your opponent to finish deploying…</p>`);
+      return;
+    }
+    // local hotseat
+    if(color===BLUE){
+      this.setupColor=RED; this.selRank=null;
+      this.showOverlay(`<h3>Pass the device</h3>
+        <p>BLUE has deployed. Hand the device to RED.</p>
+        <div class="big">RED deploys next</div>
+        <button class="btn solid" onclick="game.hideOverlay();game.showSetupIntro('red');">Ready</button>`);
+    } else {
+      this.beginPlayLocal();
+    }
+  },
+
+  beginPlayLocal(){
+    this.phase='play'; this.turn=BLUE; this.selRank=null; this.sel=null; this.moves=[];
+    document.getElementById('matchHint').textContent='Two players on one device. Ranks hide when you pass.';
+    this.log('Both armies deployed. BLUE moves first.','win');
+    this.showOverlay(`<h3>Deployment complete</h3><p>Hand the device to BLUE to begin.</p>
+      <div class="big">BLUE moves first</div>
+      <button class="btn solid" onclick="game.hideOverlay();game.render();game.renderSidePanel();">Begin</button>`);
+  },
+
+  beginPlayOnline(){
+    // merge opponent pieces onto the board
+    this.oppSetup.forEach(sp=>{
+      const rk=RANKS.find(x=>x.key===sp.rank);
+      this.board[sp.r][sp.c]={id:'p'+(this._idc++),owner:(this.myColor===BLUE?RED:BLUE),rank:rk.key,power:rk.power};
+    });
+    this.phase='play'; this.turn=BLUE; this.sel=null; this.moves=[]; this.selRank=null;
+    this.hideOverlay();
+    this.log('Both armies deployed. BLUE moves first.','win');
+    this.render(); this.renderSidePanel();
+  },
+
+  /* ---------- side panel router ---------- */
+  renderSidePanel(){
+    if(this.phase==='setup') this.renderRoster(); else this.renderDeduction();
+  },
+
+  /* ---------- saved layouts (persist in browser; in-memory fallback) ---------- */
+  loadStore(){ try{ return JSON.parse(localStorage.getItem('fieldcmd_layouts_v1')||'{}'); }catch(e){ return this._memLayouts||{}; } },
+  saveStore(obj){ this._memLayouts=obj; try{ localStorage.setItem('fieldcmd_layouts_v1', JSON.stringify(obj)); }catch(e){} },
+
+  rbToRow(color,rb){ return color===BLUE ? (7-rb) : rb; },
+  rowToRb(color,r){ return color===BLUE ? (7-r) : r; },
+
+  saveLayout(){
+    const color=this.setupColor;
+    const name=(this.layoutNameDraft||'').trim();
+    if(!name || this.placedCount(color)===0) return;
+    const pieces=[];
+    this.homeRows(color).forEach(r=>{for(let c=0;c<COLS;c++){const p=this.board[r][c];
+      if(p&&p.owner===color) pieces.push([this.rowToRb(color,r),c,p.rank]);}});
+    const store=this.loadStore(); store[name]=pieces; this.saveStore(store);
+    this.layoutNameDraft=''; this.renderRoster();
+  },
+
+  loadLayout(name, builtin){
+    const color=this.setupColor;
+    const src = builtin ? BUILTIN_LAYOUTS[name] : (this.loadStore()[name]);
+    if(!src) return;
+    this.clearSetup();                 // reset this color's rows + pool
+    src.forEach(([rb,c,rank])=>{
+      const r=this.rbToRow(color,rb);
+      if(this.pool[color][rank]>0 && !this.board[r][c]){
+        const rk=RANKS.find(x=>x.key===rank);
+        this.board[r][c]={id:'p'+(this._idc++),owner:color,rank:rk.key,power:rk.power};
+        this.pool[color][rank]--;
+      }
+    });
+    this.selRank=null; this.render(); this.renderRoster();
+  },
+
+  deleteLayout(name){
+    const store=this.loadStore(); delete store[name]; this.saveStore(store);
+    this.renderRoster();
+  },
+
+  renderRoster(){
+    const host=document.getElementById('deductionBody');
+    const color=this.setupColor;
+    const placed=this.placedCount(color);
+    const rows=RANKS.map(rk=>{
+      const left=this.pool[color][rk.key];
+      const cls='rs-row'+(this.selRank===rk.key?' active':'')+(left<=0?' done':'');
+      return `<div class="${cls}" onclick="game.pickRank('${rk.key}')">
+        <span class="ins">${insignia(rk.key)}</span>
+        <span class="nm">${rk.short}</span>
+        <span class="ct">${left}/${rk.count}</span></div>`;
+    }).join('');
+    host.innerHTML=`
+      <div class="setup-bar"><b style="color:var(--brass)">${color.toUpperCase()}</b> deployment — ${placed}/21 placed.
+      ${this.selRank?'Placing <b style="color:var(--brass)">'+shortOf(this.selRank)+'</b> — click a highlighted square.':'Pick a rank below.'}</div>
+      <div class="roster">${rows}</div>
+      <div class="setup-actions">
+        <button class="btn small" onclick="game.autoFill()">Auto-fill rest</button>
+        <button class="btn small" onclick="game.clearSetup()">Clear</button>
+        <button class="btn small ${placed===21?'solid':''}" onclick="game.confirmSetup()" ${placed===21?'':'disabled style="opacity:.4;cursor:not-allowed"'}>Confirm</button>
+      </div>
+      ${this.layoutsMarkup()}`;
+  },
+
+  layoutsMarkup(){
+    const builtinRows=Object.keys(BUILTIN_LAYOUTS).map(n=>
+      `<div class="lay-row builtin"><span class="lname" onclick="game.loadLayout('${n}',true)">${n}</span></div>`).join('');
+    const saved=this.loadStore();
+    const names=Object.keys(saved);
+    const savedRows = names.length
+      ? names.map(n=>`<div class="lay-row"><span class="lname" onclick="game.loadLayout('${this.esc(n)}',false)">${this.esc(n)}</span><span class="lay-x" title="Delete" onclick="game.deleteLayout('${this.esc(n)}')">\u2715</span></div>`).join('')
+      : `<div class="lay-empty">No saved layouts yet.</div>`;
+    return `<div class="lay-sec">
+      <div class="lay-h">Preset formations</div>
+      ${builtinRows}
+      <div class="lay-h" style="margin-top:12px">Your saved layouts</div>
+      ${savedRows}
+      <div class="lay-save">
+        <input placeholder="Name this layout" value="${this.esc(this.layoutNameDraft||'')}" oninput="game.layoutNameDraft=this.value" onkeydown="if(event.key==='Enter')game.saveLayout()">
+        <button class="btn small" onclick="game.saveLayout()">Save</button>
+      </div>
+    </div>`;
+  },
+  esc(s){ return String(s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
+
+  /* ---------- viewpoint ---------- */
+  viewColor(){
+    if(this.mode==='online') return this.myColor;
+    return this.phase==='setup' ? this.setupColor : this.turn;
+  },
+  myList(){ return this.checklists[this.viewColor()]; },
+  canMoveNow(){
+    if(this.gameOver) return false;
+    if(this.mode==='local') return true;
+    return this.turn===this.myColor && this.conn && this.conn.open;
+  },
+
+  /* ---------- interaction ---------- */
+  cellClick(r,c){
+    if(this.phase==='setup'){ this.placeAt(r,c); return; }
+    if(this.gameOver) return;
+    const p=this.board[r][c];
+    const isTarget=this.moves.some(m=>m[0]===r&&m[1]===c);
+    if(this.sel && isTarget && this.canMoveNow()){ this.doMove([this.sel[0],this.sel[1],r,c],true); return; }
+    if(p && p.owner===this.viewColor()){
+      if(this.canMoveNow()){ this.sel=[r,c]; this.moves=this.legalMoves(r,c); this.render(); }
+      return;
+    }
+    if(p && p.owner!==this.viewColor()){
+      this.focusedId=p.id;
+      if(!this.myList()[p.id]) this.myList()[p.id]=new Set(RANKS.map(x=>x.key));
+      this.sel=null; this.moves=[]; this.render(); this.renderSidePanel(); return;
+    }
+    this.sel=null; this.moves=[]; this.render();
+  },
+
+  legalMoves(r,c){
+    const out=[];
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>{
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>=ROWS||nc<0||nc>=COLS) return;
+      const t=this.board[nr][nc];
+      if(!t || t.owner!==this.board[r][c].owner) out.push([nr,nc]);
+    });
+    return out;
+  },
+
+  /* ---------- move + combat (deterministic, identical on both clients) ---------- */
+  doMove(mv, local){
+    const [r,c,nr,nc]=mv;
+    const mover=this.board[r][c], target=this.board[nr][nc];
+    let winner=null, reason=null;
+    const me=this.viewColor();
+
+    if(target){
+      const res=this.resolve(mover,target);
+      const side = mover.owner.toUpperCase();
+      if(res==='attacker'){
+        if(target.rank==='FL'){winner=mover.owner;reason='Enemy flag captured.';}
+        this.board[nr][nc]=mover; this.board[r][c]=null; this.clearChecklist(target.id);
+        this.log(`${side} challenged and won at r${nr+1}c${nc+1}.`, mover.owner);
+      } else if(res==='defender'){
+        if(mover.rank==='FL'){winner=target.owner;reason='Enemy flag captured.';}
+        this.board[r][c]=null; this.clearChecklist(mover.id);
+        this.log(`${side} challenged and lost at r${nr+1}c${nc+1}.`, target.owner);
+      } else {
+        this.board[nr][nc]=null; this.board[r][c]=null; this.clearChecklist(mover.id); this.clearChecklist(target.id);
+        this.log(`Both pieces fell at r${nr+1}c${nc+1}.`, 'win');
+      }
+    } else {
+      this.board[nr][nc]=mover; this.board[r][c]=null;
+      if(mover.rank==='FL'){
+        const homeRow=mover.owner===BLUE?0:ROWS-1;
+        if(nr===homeRow){winner=mover.owner;reason='Flag reached the far row.';}
+      }
+    }
+
+    if(local && this.mode==='online' && this.conn && this.conn.open){
+      this.conn.send({type:'move', mv});
+    }
+
+    this.sel=null; this.moves=[]; this.focusedId=null;
+    if(winner){ this.render(); this.win(winner,reason); return; }
+    this.turn = this.turn===BLUE?RED:BLUE;
+    this.render(); this.renderSidePanel();
+    if(this.mode==='local') this.handoffLocal();
+  },
+
+  resolve(att,def){
+    const a=att.rank, d=def.rank;
+    if(a==='FL'&&d==='FL') return 'attacker';      // challenging flag wins
+    if(a==='SP'&&d==='SP') return 'both';          // spy vs spy: mutual
+    if(a==='SP'&&d==='PV') return 'defender';      // private kills spy
+    if(a==='PV'&&d==='SP') return 'attacker';
+    if(a==='SP') return 'attacker';                // spy beats anything else it strikes
+    if(d==='SP') return 'defender';                // spy beats anything that strikes it (bar private)
+    if(att.power>def.power) return 'attacker';
+    if(att.power<def.power) return 'defender';
+    return 'both';
+  },
+
+  win(owner,reason){
+    if(this.gameOver) return;
+    this.gameOver=true;
+    this.log(`${owner.toUpperCase()} wins — ${reason}`,'win');
+    this.render();
+    const rematchBtn = this.mode==='online'
+      ? `<button class="btn solid" onclick="game.requestRematch()">Rematch</button>`
+      : `<button class="btn solid" onclick="game.startLocal()">Rematch</button>`;
+    this.showOverlay(`
+      <h3>${owner.toUpperCase()} is victorious</h3>
+      <p>${reason}</p>
+      <div class="menu-btns">
+        ${rematchBtn}
+        <button class="btn" onclick="game.showMenu()">Back to menu</button>
+      </div>`);
+  },
+
+  handoffLocal(){
+    this.showOverlay(`
+      <h3>Pass the device</h3>
+      <p>Hand the game to <b style="color:var(--brass)">${this.turn.toUpperCase()}</b>. The other army's ranks are hidden from you.</p>
+      <div class="big">Now playing: ${this.turn.toUpperCase()}</div>
+      <button class="btn solid" onclick="game.hideOverlay();game.render();game.renderSidePanel();">Ready</button>`);
+  },
+
+  /* ---------- deduction checklist ---------- */
+  renderDeduction(){
+    const host=document.getElementById('deductionBody');
+    const id=this.focusedId;
+    if(!id || !this.board.flat().some(p=>p&&p.id===id)){
+      this.focusedId=null;
+      host.innerHTML=`<div class="hint">Click an enemy piece to open a checklist of every rank it could be. Uncheck ranks you rule out as you learn from challenges. Your deductions are private to you.</div>`;
+      return;
+    }
+    // find its location for the header
+    let loc='';
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(this.board[r][c]&&this.board[r][c].id===id)loc=`r${r+1} · c${c+1}`;}
+    const set=this.myList()[id]||new Set(RANKS.map(x=>x.key));
+    const rows=RANKS.map(rk=>{
+      const on=set.has(rk.key);
+      return `<label class="cl-row ${on?'':'off'}">
+        <input type="checkbox" ${on?'checked':''} onchange="game.toggleRank('${id}','${rk.key}')">
+        <span class="ins">${insignia(rk.key)}</span>
+        <span class="nm">${rk.short}</span>
+        <span class="ct">${rk.count>1?'×'+rk.count:''}</span>
+      </label>`;
+    }).join('');
+    const remaining=set.size;
+    const summary = remaining===1 ? `<span class="cl-loc">likely ${shortOf([...set][0])}</span>` : `${remaining} possible`;
+    host.innerHTML=`
+      <div class="cl-head"><span>Enemy piece <span class="cl-loc">${loc}</span></span><span>${summary}</span></div>
+      <div class="cl-list">${rows}</div>
+      <div class="cl-actions">
+        <button class="btn small" onclick="game.resetPiece('${id}')">Reset</button>
+        <button class="btn small" onclick="game.focusedId=null;game.render();game.renderSidePanel();">Close</button>
+      </div>`;
+  },
+  toggleRank(id,key){
+    const set=this.myList()[id]||(this.myList()[id]=new Set(RANKS.map(x=>x.key)));
+    if(set.has(key)) set.delete(key); else set.add(key);
+    this.render(); this.renderSidePanel();
+  },
+  resetPiece(id){ this.myList()[id]=new Set(RANKS.map(x=>x.key)); this.render(); this.renderSidePanel(); },
+  clearChecklist(id){ delete this.checklists.blue[id]; delete this.checklists.red[id]; if(this.focusedId===id)this.focusedId=null; },
+
+  /* ---------- rendering ---------- */
+  buildLegend(){ document.getElementById('legend').innerHTML=RANKS.map(r=>`<div class="li"><span class="ins">${insignia(r.key)}</span>${r.short}</div>`).join(''); },
+
+  render(){
+    const el=document.getElementById('board'); el.innerHTML='';
+    const view=this.viewColor();
+    let tl=this.turn.toUpperCase();
+    if(this.phase==='setup') tl='DEPLOY · '+this.setupColor.toUpperCase();
+    else if(this.mode==='online') tl += this.turn===this.myColor ? ' (you)' : ' (opponent)';
+    document.getElementById('turnLabel').textContent=tl;
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      const cell=document.createElement('div');
+      cell.className='cell'+(((r+c)%2)?' light':'');
+      if(this.sel&&this.sel[0]===r&&this.sel[1]===c) cell.classList.add('sel');
+      if(this.moves.some(m=>m[0]===r&&m[1]===c)) cell.classList.add(this.board[r][c]?'attack':'move');
+      if(this.phase==='setup' && this.homeRows(this.setupColor).includes(r)) cell.classList.add('zone');
+      const p=this.board[r][c];
+      if(p){
+        const pd=document.createElement('div');
+        if(p.owner===view){
+          pd.className='piece '+p.owner;
+          pd.innerHTML=insignia(p.rank)+`<div class="lbl">${shortOf(p.rank)}</div>`;
+        } else {
+          pd.className='piece concealed'+(p.id===this.focusedId?' focused':'');
+          let badge='';
+          const set=this.myList()[p.id];
+          if(set){ if(set.size===1) badge=`<div class="badge one">${shortOf([...set][0])}</div>`;
+                   else if(set.size<RANKS.length) badge=`<div class="badge">${set.size}</div>`; }
+          pd.innerHTML=CREST+badge;
+        }
+        cell.appendChild(pd);
+      }
+      cell.onclick=()=>this.cellClick(r,c);
+      el.appendChild(cell);
+    }
+  },
+
+  log(msg,cls=''){
+    const l=document.getElementById('log');
+    const d=document.createElement('div');
+    if(cls)d.className=cls; d.textContent=msg;
+    l.insertBefore(d,l.firstChild);
+  },
+
+  /* ---------- overlay helpers ---------- */
+  showOverlay(html){ document.getElementById('overlayCard').innerHTML=html; document.getElementById('overlay').classList.remove('hidden'); },
+  hideOverlay(){ document.getElementById('overlay').classList.add('hidden'); },
+  setStatus(state,text){
+    const dot=document.getElementById('statusDot');
+    dot.className='dot'+(state==='local'?'':' '+state);
+    document.getElementById('statusText').textContent=text;
+  },
+
+  /* ---------- menus ---------- */
+  showMenu(){
+    this.showOverlay(`
+      <h3>Field Command</h3>
+      <p>Play across two devices, or pass & play on this one.</p>
+      <div class="menu-btns">
+        <button class="btn solid" onclick="game.hostGame()">Host online match</button>
+        <button class="btn" onclick="game.joinScreen()">Join with a code</button>
+        <button class="btn" onclick="game.startLocal()">Pass &amp; play (this device)</button>
+      </div>
+      <div class="err" id="menuErr"></div>`);
+  },
+  joinScreen(){
+    this.showOverlay(`
+      <h3>Join a match</h3>
+      <p>Enter the 5-digit room code your opponent shared.</p>
+      <input class="code-input" id="joinCode" maxlength="5" inputmode="numeric" placeholder="00000" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      <div class="menu-btns">
+        <button class="btn solid" onclick="game.joinGame()">Connect</button>
+        <button class="btn" onclick="game.showMenu()">Back</button>
+      </div>
+      <div class="err" id="joinErr"></div>`);
+    setTimeout(()=>{const i=document.getElementById('joinCode');if(i)i.focus();},50);
+  },
+
+  /* ---------- online: PeerJS ---------- */
+  peerReady(){ return typeof Peer!=='undefined'; },
+  netUnavailable(where){
+    const t='Online play needs this page to be hosted at a real URL. It cannot open a connection inside a preview sandbox. Host the file (Netlify / GitHub Pages / itch.io) and open that URL, or use Pass &amp; play here.';
+    this.showOverlay(`<h3>Online unavailable here</h3><p>${t}</p>
+      <div class="menu-btns"><button class="btn solid" onclick="game.startLocal()">Pass &amp; play instead</button>
+      <button class="btn" onclick="game.showMenu()">Back</button></div>`);
+  },
+
+  hostGame(retries=3){
+    if(!this.peerReady()) return this.netUnavailable();
+    this.teardownPeer();
+    const code=String(Math.floor(10000+Math.random()*90000));
+    this.setStatus('amber','Hosting…');
+    this.showOverlay(`<h3>Waiting for opponent</h3><p>Share this room code. You are <b style="color:var(--brass)">BLUE</b> and move first.</p>
+      <div class="code-box" id="codeBox">${code}</div>
+      <div class="menu-btns">
+        <button class="btn" onclick="game.copyCode('${code}')">Copy code</button>
+        <button class="btn" onclick="game.showMenu();game.teardownPeer();game.setStatus('local','Local');">Cancel</button>
+      </div>
+      <div class="err" id="hostErr"></div>`);
+    try{ this.peer=new Peer('fieldcmd-'+code); }catch(e){ return this.netUnavailable(); }
+    this.peer.on('open',()=>{ /* waiting for a connection */ });
+    this.peer.on('connection',(conn)=>{
+      this.conn=conn; this.myColor=BLUE; this.mode='online';
+      this.bindConn(conn);
+      conn.on('open',()=>{ this.dealAndSend(); });
+    });
+    this.peer.on('error',(err)=>{
+      if(err && err.type==='unavailable-id' && retries>0){ this.hostGame(retries-1); return; }
+      const e=document.getElementById('hostErr'); if(e)e.textContent='Connection error: '+(err&&err.type||'unknown')+'. Try again.';
+      this.setStatus('red','Error');
+    });
+  },
+
+  joinGame(){
+    if(!this.peerReady()) return this.netUnavailable();
+    const code=(document.getElementById('joinCode')||{}).value||'';
+    if(code.length!==5){ const e=document.getElementById('joinErr'); if(e)e.textContent='Enter all 5 digits.'; return; }
+    this.teardownPeer();
+    this.setStatus('amber','Connecting…');
+    this.showOverlay(`<h3>Connecting…</h3><p>Looking for room ${code}.</p><div class="err" id="joinErr2"></div>
+      <div class="menu-btns" style="margin-top:14px"><button class="btn" onclick="game.showMenu();game.teardownPeer();game.setStatus('local','Local');">Cancel</button></div>`);
+    try{ this.peer=new Peer(); }catch(e){ return this.netUnavailable(); }
+    this.peer.on('open',()=>{
+      const conn=this.peer.connect('fieldcmd-'+code,{reliable:true});
+      this.conn=conn; this.myColor=RED; this.mode='online';
+      this.bindConn(conn);
+      conn.on('open',()=>{ /* wait for init from host */ });
+    });
+    this.peer.on('error',(err)=>{
+      const t=(err&&err.type)||'unknown';
+      const msg = t==='peer-unavailable' ? 'No match found with that code. Check it and try again.' : 'Connection error: '+t+'.';
+      const e=document.getElementById('joinErr2')||document.getElementById('joinErr'); if(e)e.textContent=msg;
+      this.setStatus('red','Error');
+    });
+  },
+
+  bindConn(conn){
+    conn.on('data',(msg)=>this.onMessage(msg));
+    conn.on('close',()=>this.onDisconnect());
+    conn.on('error',()=>this.onDisconnect());
+  },
+
+  onMessage(msg){
+    if(!msg||!msg.type) return;
+    if(msg.type==='begin'){
+      this.board=this.emptyBoard(); this.turn=BLUE; this.gameOver=false;
+      this.myColor=RED; this.mode='online';
+      this.sel=null; this.moves=[]; this.focusedId=null; this.checklists={blue:{},red:{}};
+      this.phase='setup'; this.setupColor=RED; this.pool={blue:this.freshPool(),red:this.freshPool()};
+      this.selRank=null; this.mySetup=null; this.oppSetup=null; this.setupSent=false;
+      document.getElementById('log').innerHTML='';
+      this.setStatus('green','Connected'); document.getElementById('matchHint').textContent='Connected. You are RED.';
+      this.showSetupIntro(RED); this.render();
+    } else if(msg.type==='setup'){
+      this.oppSetup=msg.pieces;
+      if(this.setupSent) this.beginPlayOnline();
+    } else if(msg.type==='init'){
+      this.board=msg.board; this.turn=msg.turn; this.gameOver=false;
+      this.myColor=RED; this.mode='online';
+      this.sel=null; this.moves=[]; this.focusedId=null; this.checklists={blue:{},red:{}};
+      document.getElementById('log').innerHTML='';
+      this.setStatus('green','Connected'); document.getElementById('matchHint').textContent='Connected. You are RED.';
+      this.hideOverlay(); this.log('Connected. BLUE moves first.','win');
+      this.render(); this.renderSidePanel();
+    } else if(msg.type==='move'){
+      this.doMove(msg.mv,false);
+    } else if(msg.type==='rematchRequest'){
+      if(this.myColor===BLUE) this.dealAndSend();
+    }
+  },
+
+  dealAndSend(){   // host: start deployment for both
+    this.board=this.emptyBoard(); this.turn=BLUE; this.gameOver=false; this.myColor=BLUE; this.mode='online';
+    this.sel=null; this.moves=[]; this.focusedId=null; this.checklists={blue:{},red:{}};
+    this.phase='setup'; this.setupColor=BLUE; this.pool={blue:this.freshPool(),red:this.freshPool()};
+    this.selRank=null; this.mySetup=null; this.oppSetup=null; this.setupSent=false;
+    document.getElementById('log').innerHTML='';
+    this.setStatus('green','Connected'); document.getElementById('matchHint').textContent='Connected. You are BLUE.';
+    if(this.conn && this.conn.open) this.conn.send({type:'begin'});
+    this.showSetupIntro(BLUE);
+    this.render();
+  },
+
+  requestRematch(){
+    if(!this.conn||!this.conn.open){ this.showMenu(); return; }
+    if(this.myColor===BLUE){ this.dealAndSend(); }
+    else { this.conn.send({type:'rematchRequest'}); this.showOverlay(`<h3>Rematch requested</h3><p>Waiting for host to start a new match…</p>`); }
+  },
+
+  onDisconnect(){
+    if(this.mode!=='online') return;
+    this.setStatus('red','Disconnected');
+    this.showOverlay(`<h3>Opponent disconnected</h3><p>The connection closed.</p>
+      <div class="menu-btns"><button class="btn solid" onclick="game.showMenu()">Back to menu</button>
+      <button class="btn" onclick="game.startLocal()">Pass &amp; play</button></div>`);
+  },
+
+  teardownPeer(){ try{ if(this.conn)this.conn.close(); }catch(e){} try{ if(this.peer)this.peer.destroy(); }catch(e){} this.conn=null; this.peer=null; },
+
+  copyCode(code){ try{ navigator.clipboard.writeText(code);}catch(e){} },
+};
+
+game.init();
+</script>
+</body>
+</html>
