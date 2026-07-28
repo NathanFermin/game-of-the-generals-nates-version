@@ -69,8 +69,8 @@
     font-size:10px;font-family:"SF Mono",ui-monospace,monospace;color:var(--parchment-dim)}
   .legend .li{display:flex;align-items:center;gap:7px;padding:1px 0}
   .legend .li .rk{color:#6f7a5f;min-width:14px;text-align:right}
-  .board{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;aspect-ratio:9/8;width:100%}
-  .cell{position:relative;background:var(--board-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s}
+  .board{display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(8,1fr);gap:2px;aspect-ratio:9/8;width:100%}
+  .cell{position:relative;background:var(--board-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s;min-width:0;min-height:0}
   .cell.light{background:var(--board-light)}
   .cell:hover{background:#4c5b3f}
   .cell.sel{outline:3px solid var(--brass);outline-offset:-3px;z-index:2}
@@ -81,6 +81,8 @@
   .piece.blue{background:linear-gradient(160deg,#4a7ba0,#33566f);border:1px solid #5a8cb0}
   .piece.red{background:linear-gradient(160deg,#b8503a,#843525);border:1px solid #c86048}
   .piece.concealed{background:linear-gradient(160deg,#4a5a3c,#39472c);border:1px solid #6d7d5c}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .piece.myturn{animation:bob 1.5s ease-in-out infinite}
   .piece.focused{outline:2px solid var(--brass);outline-offset:1px}
   .piece svg{width:52%;height:52%}
   .piece .lbl{font-size:8px;letter-spacing:.3px;color:rgba(255,255,255,.85);margin-top:1px;text-align:center;line-height:1}
@@ -149,6 +151,8 @@
     padding:9px 14px;border:1px solid var(--brass-dim);background:transparent;color:var(--brass);cursor:pointer;border-radius:2px;transition:.15s}
   button.btn:hover{background:var(--brass-dim);color:var(--ink)}
   button.btn.solid{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+  button.btn.danger{border-color:#c0553f;color:#e79b86}
+  button.btn.danger:hover{background:#a5432f;color:#fff;border-color:#a5432f}
   button.btn.small{padding:6px 10px;font-size:10px}
   .controls{display:flex;gap:8px;flex-wrap:wrap}
 
@@ -483,13 +487,17 @@ const game={
     this.initAudio(); const ac=this._audio; if(!ac) return;
     try{ if(ac.state==='suspended') ac.resume();
       const now=ac.currentTime;
-      [ [660,0], [880,0.12] ].forEach(([f,t])=>{
-        const o=ac.createOscillator(), g=ac.createGain();
-        o.type='sine'; o.frequency.value=f;
-        g.gain.setValueAtTime(0.0001, now+t);
-        g.gain.exponentialRampToValueAtTime(0.18, now+t+0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, now+t+0.16);
-        o.connect(g); g.connect(ac.destination); o.start(now+t); o.stop(now+t+0.18);
+      // single bell: a clear fundamental with a faint upper partial for a bell-like
+      // timbre, struck once with a fast attack and a long natural decay.
+      const g=ac.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.28, now+0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, now+1.4);
+      g.connect(ac.destination);
+      [[880,1],[1760,0.25]].forEach(([f,amp])=>{
+        const o=ac.createOscillator(); const og=ac.createGain();
+        o.type='sine'; o.frequency.value=f; og.gain.value=amp;
+        o.connect(og); og.connect(g); o.start(now); o.stop(now+1.5);
       });
     }catch(e){}
   },
@@ -849,7 +857,10 @@ const game={
       if(p){
         const pd=document.createElement('div');
         if(p.owner===view){
-          pd.className='piece '+p.owner;
+          const myTurn = this.phase==='play' && !this.gameOver &&
+                         (this.mode==='local' ? true : this.turn===this.myColor);
+          pd.className='piece '+p.owner+(myTurn?' myturn':'');
+          if(myTurn) pd.style.animationDelay=(((r+c)%6)*0.1)+'s';  // gentle wave, not unison
           pd.innerHTML=insignia(p.rank)+`<div class="lbl">${shortOf(p.rank)}</div>`;
         } else {
           pd.className='piece concealed'+(p.id===this.focusedId?' focused':'');
@@ -880,6 +891,34 @@ const game={
     const dot=document.getElementById('statusDot');
     dot.className='dot'+(state==='local'?'':' '+state);
     document.getElementById('statusText').textContent=text;
+    this.updateMatchControls();
+  },
+
+  updateMatchControls(){
+    const host=document.getElementById('matchControls');
+    if(!host) return;
+    const inMatch = this.mode==='online' && this.conn && this.conn.open;
+    host.innerHTML = inMatch
+      ? `<button class="btn danger" onclick="game.leaveMatch()">Disconnect from match</button>`
+      : `<button class="btn solid" onclick="game.showMenu()">Play online / new match</button>`;
+  },
+
+  leaveMatch(){
+    this.showOverlay(`
+      <h3>Disconnect from match?</h3>
+      <p>Are you sure you want to leave? This ends the current match for both you and your opponent.</p>
+      <div class="menu-btns">
+        <button class="btn danger" onclick="game.confirmLeave()">Disconnect</button>
+        <button class="btn" onclick="game.hideOverlay()">Stay in match</button>
+      </div>`);
+  },
+
+  confirmLeave(){
+    this.teardownPeer();
+    this.mode='local';
+    this.setStatus('local','Local');
+    this.hideOverlay();
+    this.showMenu();
   },
 
   /* ---------- menus ---------- */
