@@ -17,23 +17,58 @@
     font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     min-height:100vh;padding:24px 16px 60px;}
   .wrap{max-width:1180px;margin:0 auto}
-  header.top{display:flex;align-items:baseline;justify-content:space-between;
+  header.top{display:flex;align-items:center;justify-content:space-between;
     border-bottom:2px solid var(--brass-dim);padding-bottom:14px;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
-  h1{font-size:30px;font-weight:600;letter-spacing:.5px}
-  h1 .sub{display:block;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--brass);
-    font-family:"SF Mono",ui-monospace,"Cascadia Mono",monospace;margin-top:4px;font-weight:400;}
-  .status-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .emblem{width:40px;height:40px;flex-shrink:0;filter:drop-shadow(0 0 6px rgba(201,162,75,.25))}
+  .emblem svg{width:100%;height:100%}
+  h1{font-size:28px;font-weight:600;letter-spacing:.5px}
+  h1 .sub{display:block;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--brass);
+    font-family:"SF Mono",ui-monospace,"Cascadia Mono",monospace;margin-top:3px;font-weight:400;}
+  .status-wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .dot{width:9px;height:9px;border-radius:50%;background:#6f7a5f;display:inline-block;margin-right:7px;vertical-align:middle}
   .dot.amber{background:#d4a24b} .dot.green{background:#6fa04b} .dot.red{background:#c0553f}
   .conn-label{font-family:"SF Mono",ui-monospace,monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--parchment-dim)}
-  .turn-badge{font-family:"SF Mono",ui-monospace,monospace;font-size:13px;padding:8px 16px;
-    border:1px solid var(--line);border-radius:2px;letter-spacing:1px;text-transform:uppercase;background:var(--panel);}
-  .turn-badge b{color:var(--brass)}
+  .icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--brass-dim);background:transparent;
+    color:var(--brass);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:.15s;font-family:Georgia,serif;line-height:1;padding:0}
+  .icon-btn:hover{background:var(--brass-dim);color:var(--ink)}
+  .icon-btn.muted{opacity:.4}
+  /* larger, color-coded turn badge */
+  .turn-badge{font-family:"SF Mono",ui-monospace,monospace;display:flex;flex-direction:column;align-items:center;
+    padding:8px 22px;border:2px solid var(--line);border-radius:4px;background:var(--panel);min-width:118px;
+    transition:.2s;line-height:1.15}
+  .turn-badge .tb-label{font-size:9px;letter-spacing:3px;color:var(--parchment-dim);text-transform:uppercase}
+  .turn-badge b{font-size:22px;letter-spacing:1px;font-weight:700}
+  .turn-badge.blue{border-color:#5a8cb0;background:linear-gradient(160deg,rgba(74,123,160,.28),rgba(51,86,111,.18))}
+  .turn-badge.blue b{color:#8fbde0}
+  .turn-badge.red{border-color:#c86048;background:linear-gradient(160deg,rgba(184,80,58,.30),rgba(132,53,37,.18))}
+  .turn-badge.red b{color:#e79b86}
+  .turn-badge.pulse{animation:tbpulse 1s ease-out}
+  @keyframes tbpulse{0%{box-shadow:0 0 0 0 rgba(201,162,75,.55)}100%{box-shadow:0 0 0 14px rgba(201,162,75,0)}}
+  .h2-note{font-size:9px;color:var(--parchment-dim);letter-spacing:1px;text-transform:none;font-weight:400;float:right}
+  h2.collapsible{cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+  h2.collapsible:hover{color:var(--parchment)}
+  .caret{transition:transform .15s;font-size:10px}
+  .caret.open{transform:rotate(90deg)}
   .layout{display:grid;grid-template-columns:1fr 330px;gap:24px;align-items:start}
-  @media(max-width:900px){.layout{grid-template-columns:1fr}}
-
   .board-frame{background:#20281a;border:1px solid var(--line);padding:14px;border-radius:3px;
-    box-shadow:0 12px 40px rgba(0,0,0,.5),inset 0 0 60px rgba(0,0,0,.3);}
+    box-shadow:0 12px 40px rgba(0,0,0,.5),inset 0 0 60px rgba(0,0,0,.3);
+    width:100%;max-width:calc((100vh - 170px) * 1.125);margin:0 auto}
+  @media(max-width:900px){
+    .layout{grid-template-columns:1fr}
+    .board-frame{max-width:min(100%, calc((100vh - 320px) * 1.125))}
+  }
+  @media(max-width:520px){
+    body{padding:12px 8px 40px}
+    h1{font-size:22px} .emblem{width:32px;height:32px}
+    .turn-badge{min-width:96px;padding:6px 14px} .turn-badge b{font-size:18px}
+  }
+  /* rank legend reads TOP-TO-BOTTOM down each column (high rank first) */
+  .legend{display:grid;grid-auto-flow:column;grid-template-rows:repeat(8,auto);gap:5px 16px;
+    font-size:10px;font-family:"SF Mono",ui-monospace,monospace;color:var(--parchment-dim)}
+  .legend .li{display:flex;align-items:center;gap:7px;padding:1px 0}
+  .legend .li .rk{color:#6f7a5f;min-width:14px;text-align:right}
   .board{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;aspect-ratio:9/8;width:100%}
   .cell{position:relative;background:var(--board-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s}
   .cell.light{background:var(--board-light)}
@@ -107,8 +142,6 @@
   .log div{padding:2px 0;border-bottom:1px dotted #2a331e}
   .log .win{color:var(--brass)} .log .red{color:#e08a76} .log .blue{color:#8fbde0}
 
-  .legend{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:10px;font-family:"SF Mono",ui-monospace,monospace;color:var(--parchment-dim)}
-  .legend .li{display:flex;align-items:center;gap:6px;padding:2px 0}
   .legend .ins{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
   .legend .ins svg{width:14px;height:14px}
 
@@ -132,15 +165,34 @@
     width:100%;padding:12px;background:#0d1108;color:var(--parchment);border:1px solid var(--line);border-radius:3px;margin:14px 0}
   .hidden{display:none!important}
   .err{color:#e08a76;font-size:12px;font-family:"SF Mono",ui-monospace,monospace;margin-top:8px}
+  .rules{text-align:left;margin-top:10px}
+  .rule-block{margin-bottom:14px;padding-left:12px;border-left:2px solid var(--brass-dim)}
+  .rule-h{font-family:"SF Mono",ui-monospace,monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--brass);margin-bottom:5px}
+  .rules p{font-size:12px;color:var(--parchment);line-height:1.5;margin-bottom:3px;font-family:"SF Mono",ui-monospace,monospace}
+  .rules p b{color:var(--brass);font-weight:700}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Field Command<span class="sub">a game of hidden rank · alpha</span></h1>
+    <div class="brand">
+      <span class="emblem" id="emblem" title="Field Command">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 3 L34 8 V19 C34 28 20 37 20 37 C20 37 6 28 6 19 V8 Z"
+                fill="rgba(201,162,75,0.14)" stroke="#c9a24b" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M13 15 L18 21 L15 24 M27 15 L22 21 L25 24" stroke="#c9a24b" stroke-width="2"
+                fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="20" cy="12" r="2.2" fill="#c9a24b"/>
+        </svg>
+      </span>
+      <h1>Field Command<span class="sub">a game of hidden rank · alpha</span></h1>
+    </div>
     <div class="status-wrap">
       <span class="conn-label"><span class="dot" id="statusDot"></span><span id="statusText">Local</span></span>
-      <div class="turn-badge">Turn: <b id="turnLabel">BLUE</b></div>
+      <button class="icon-btn" id="soundBtn" onclick="game.toggleSound()" title="Sound on/off">&#9834;</button>
+      <button class="icon-btn" id="helpBtn" onclick="game.showRules()" title="How to play">?</button>
+      <div class="turn-badge" id="turnBadge"><span class="tb-label">TURN</span><b id="turnLabel">BLUE</b></div>
     </div>
   </header>
 
@@ -148,13 +200,6 @@
     <div class="board-frame"><div class="board" id="board"></div></div>
 
     <div>
-      <div class="panel">
-        <h2 id="panelTitle">Deduction</h2>
-        <div class="body" id="deductionBody">
-          <div class="hint">Click an enemy piece to open a checklist of every rank it could be. Uncheck ranks you rule out as you learn from challenges. Your deductions are private to you.</div>
-        </div>
-      </div>
-
       <div class="panel">
         <h2>Match</h2>
         <div class="body">
@@ -171,12 +216,19 @@
       </div>
 
       <div class="panel">
-        <h2>Rank order</h2>
+        <h2>Rank order <span class="h2-note">high → low</span></h2>
         <div class="body">
           <div class="legend" id="legend"></div>
-          <div style="margin-top:10px;font-size:10px;font-family:'SF Mono',monospace;color:#6f7a5f;line-height:1.6">
-            Spy beats all officers but loses to a Private. Private beats the Spy. Equal ranks trade off. Capture the Flag — or march yours to the far row — to win. Challenges reveal the outcome only, never the rank.
-          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="deductionPanel">
+        <h2 class="collapsible" id="panelTitle" onclick="game.toggleDeduction()">
+          <span id="dedTitleText">Deduction notes</span>
+          <span class="caret" id="dedCaret">▸</span>
+        </h2>
+        <div class="body ${''}" id="deductionBody" style="display:none">
+          <div class="hint">Click an enemy piece to open a checklist of every rank it could be. As you win and lose challenges, possibilities narrow automatically.</div>
         </div>
       </div>
     </div>
@@ -217,7 +269,7 @@ function insignia(key){
     case 'G1': return s+star(12,11,4)+'</svg>';
     case 'CO': return s+'<path d="M12 4 L14 10 L12 12 L10 10 Z" fill="#fff" stroke="none"/><path d="M12 20 L14 14 L12 12 L10 14 Z" fill="#fff" stroke="none"/></svg>';
     case 'LC': return s+'<path d="M12 5 L13.5 10 L12 11.5 L10.5 10 Z" fill="#fff" stroke="none"/><path d="M12 19 L13.5 14 L12 12.5 L10.5 14 Z" fill="#fff" stroke="none"/></svg>';
-    case 'MA': return s+bar(7)+bar(15)+'</svg>';
+    case 'MA': return s+'<path d="M12 3 C9 7 8 10 9 13 C7 12 6 10 6 10 C6 14 8 16 11 16 L11 21 L13 21 L13 16 C16 16 18 14 18 10 C18 10 17 12 15 13 C16 10 15 7 12 3 Z" fill="#fff" stroke="none"/></svg>';
     case 'CP': return s+bar(6)+bar(11)+bar(16)+'</svg>';
     case '1L': return s+bar(8)+bar(14)+'</svg>';
     case '2L': return s+bar(11)+'</svg>';
@@ -232,6 +284,24 @@ const CREST='<svg viewBox="0 0 24 24" class="crest" xmlns="http://www.w3.org/200
 const BUILTIN_LAYOUTS={"Balanced Line":[[0,0,"FL"],[0,1,"G1"],[0,2,"FG"],[0,3,"G4"],[0,4,"G3"],[0,5,"G2"],[0,6,"CO"],[0,7,"LC"],[0,8,"MA"],[1,0,"CP"],[1,1,"1L"],[1,2,"2L"],[1,3,"SG"],[1,4,"SP"],[1,5,"SP"],[1,6,"PV"],[1,7,"PV"],[1,8,"PV"],[2,3,"PV"],[2,4,"PV"],[2,5,"PV"]],"Flag Fortress":[[0,0,"G3"],[0,1,"FG"],[0,2,"G4"],[0,3,"FL"],[0,4,"G2"],[0,5,"G1"],[0,6,"CO"],[0,7,"LC"],[0,8,"MA"],[1,0,"PV"],[1,1,"PV"],[1,2,"PV"],[1,3,"SP"],[1,4,"PV"],[1,5,"SP"],[1,6,"PV"],[1,7,"CP"],[1,8,"1L"],[2,3,"PV"],[2,4,"2L"],[2,5,"SG"]],"Spy Ambush":[[0,0,"MA"],[0,1,"LC"],[0,2,"CO"],[0,3,"G1"],[0,4,"G2"],[0,5,"G3"],[0,6,"G4"],[0,7,"FG"],[0,8,"FL"],[1,0,"SG"],[1,1,"2L"],[1,2,"1L"],[1,3,"CP"],[1,4,"PV"],[1,5,"PV"],[1,6,"PV"],[1,7,"PV"],[1,8,"PV"],[2,3,"SP"],[2,4,"SP"],[2,5,"PV"]]};
 
 const ROWS=8, COLS=9, RED='red', BLUE='blue';
+/* ============================================================
+   RELAY SERVER CONFIG — edit this one block to point the game
+   at your own always-on relay instead of the public PeerJS cloud.
+   Leave USE_CUSTOM_RELAY = false to use the free public default
+   (fine for quick tests, but requires the HOST player's laptop
+   to stay open — see the relay-server setup guide for why).
+   ============================================================ */
+const RELAY = {
+  USE_CUSTOM_RELAY: false,       // set true once your relay server is running
+  host: 'yourgame.duckdns.org',  // the Dynamic DNS address pointing at the host PC
+  port: 9000,                    // must match PORT in server.js
+  path: '/fieldcmd',             // must match `path` in server.js
+  secure: false,                 // true only if you've set up HTTPS on the relay
+};
+function peerOptions(){
+  if(!RELAY.USE_CUSTOM_RELAY) return undefined; // undefined = PeerJS public default
+  return { host:RELAY.host, port:RELAY.port, path:RELAY.path, secure:RELAY.secure };
+}
 const shortOf=k=>RANKS.find(r=>r.key===k).short;
 
 const game={
@@ -367,7 +437,7 @@ const game={
     this.log('Both armies deployed. BLUE moves first.','win');
     this.showOverlay(`<h3>Deployment complete</h3><p>Hand the device to BLUE to begin.</p>
       <div class="big">BLUE moves first</div>
-      <button class="btn solid" onclick="game.hideOverlay();game.render();game.renderSidePanel();">Begin</button>`);
+      <button class="btn solid" onclick="game.hideOverlay();game.setDeductionVisible(false);game.render();game.renderSidePanel();game.signalYourTurn();">Begin</button>`);
   },
 
   beginPlayOnline(){
@@ -377,14 +447,104 @@ const game={
       this.board[sp.r][sp.c]={id:'p'+(this._idc++),owner:(this.myColor===BLUE?RED:BLUE),rank:rk.key,power:rk.power};
     });
     this.phase='play'; this.turn=BLUE; this.sel=null; this.moves=[]; this.selRank=null;
-    this.hideOverlay();
+    this.hideOverlay(); this.setDeductionVisible(false);
     this.log('Both armies deployed. BLUE moves first.','win');
     this.render(); this.renderSidePanel();
+    if(this.turn===this.myColor) this.signalYourTurn();
   },
 
   /* ---------- side panel router ---------- */
   renderSidePanel(){
-    if(this.phase==='setup') this.renderRoster(); else this.renderDeduction();
+    if(this.phase==='setup'){ this.setDeductionVisible(true,true); this.renderRoster(); }
+    else { this.renderDeduction(); }
+  },
+
+  /* ---------- turn badge color-coding ---------- */
+  updateTurnBadge(){
+    const badge=document.getElementById('turnBadge');
+    const label=document.getElementById('turnLabel');
+    let who=this.turn, txt=this.turn.toUpperCase();
+    if(this.phase==='setup'){ who=this.setupColor; txt='DEPLOY'; }
+    else if(this.mode==='online'){ txt += this.turn===this.myColor?' · YOU':' · OPP'; }
+    label.textContent=txt;
+    badge.classList.remove('blue','red');
+    badge.classList.add(who===BLUE?'blue':'red');
+  },
+
+  /* ---------- sound: short beep when it becomes your turn ---------- */
+  initAudio(){ if(this._audio||this.soundOff) return; try{ this._audio=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} },
+  toggleSound(){
+    this.soundOff=!this.soundOff;
+    document.getElementById('soundBtn').classList.toggle('muted',this.soundOff);
+    if(!this.soundOff) this.initAudio();
+  },
+  playTurnChime(){
+    if(this.soundOff) return;
+    this.initAudio(); const ac=this._audio; if(!ac) return;
+    try{ if(ac.state==='suspended') ac.resume();
+      const now=ac.currentTime;
+      [ [660,0], [880,0.12] ].forEach(([f,t])=>{
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.type='sine'; o.frequency.value=f;
+        g.gain.setValueAtTime(0.0001, now+t);
+        g.gain.exponentialRampToValueAtTime(0.18, now+t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now+t+0.16);
+        o.connect(g); g.connect(ac.destination); o.start(now+t); o.stop(now+t+0.18);
+      });
+    }catch(e){}
+  },
+  signalYourTurn(){
+    this.playTurnChime();
+    const b=document.getElementById('turnBadge');
+    if(b){ b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }
+  },
+
+  /* ---------- deduction panel collapse ---------- */
+  setDeductionVisible(open, force){
+    this.deductionOpen = open;
+    const body=document.getElementById('deductionBody');
+    const caret=document.getElementById('dedCaret');
+    const title=document.getElementById('dedTitleText');
+    if(body) body.style.display = open?'block':'none';
+    if(caret) caret.classList.toggle('open',open);
+    if(title) title.textContent = this.phase==='setup' ? 'Deployment roster' : 'Deduction notes';
+  },
+  toggleDeduction(){
+    this.setDeductionVisible(!this.deductionOpen);
+    if(this.deductionOpen) this.renderSidePanel();
+  },
+
+  /* ---------- rules / how-to-play modal ---------- */
+  showRules(){
+    this.showOverlay(`
+      <h3 style="margin-bottom:4px">How to play</h3>
+      <div class="rules">
+        <div class="rule-block">
+          <div class="rule-h">Goal</div>
+          <p>Capture the enemy <b>Flag</b>.</p>
+          <p>Or march your own Flag safely to the far row.</p>
+        </div>
+        <div class="rule-block">
+          <div class="rule-h">Combat</div>
+          <p>Move onto an enemy to challenge it.</p>
+          <p>The higher rank wins; the loser is removed.</p>
+          <p>Equal ranks <b>eliminate each other</b>.</p>
+          <p>A challenge reveals only who won — never the rank.</p>
+        </div>
+        <div class="rule-block">
+          <div class="rule-h">Special ranks</div>
+          <p>The <b>Spy</b> defeats every officer and general.</p>
+          <p>But the <b>Spy</b> is beaten by a lowly <b>Private</b>.</p>
+          <p>The <b>Private</b> beats the Spy — and loses to everyone else.</p>
+        </div>
+        <div class="rule-block">
+          <div class="rule-h">Deduction</div>
+          <p>Enemy ranks are hidden — you see position, not rank.</p>
+          <p>Open the Deduction notes to track what each enemy could be.</p>
+          <p>Win or lose a challenge and the possibilities narrow automatically.</p>
+        </div>
+      </div>
+      <button class="btn solid" style="margin-top:16px" onclick="game.hideOverlay()">Got it</button>`);
   },
 
   /* ---------- saved layouts (persist in browser; in-memory fallback) ---------- */
@@ -497,7 +657,7 @@ const game={
     if(p && p.owner!==this.viewColor()){
       this.focusedId=p.id;
       if(!this.myList()[p.id]) this.myList()[p.id]=new Set(RANKS.map(x=>x.key));
-      this.sel=null; this.moves=[]; this.render(); this.renderSidePanel(); return;
+      this.sel=null; this.moves=[]; this.setDeductionVisible(true); this.render(); this.renderSidePanel(); return;
     }
     this.sel=null; this.moves=[]; this.render();
   },
@@ -526,10 +686,16 @@ const game={
       if(res==='attacker'){
         if(target.rank==='FL'){winner=mover.owner;reason='Enemy flag captured.';}
         this.board[nr][nc]=mover; this.board[r][c]=null; this.clearChecklist(target.id);
+        // mover survived, target (defender) died: the DEFENDER's owner learns their
+        // dead piece lost to a survivor of rank `mover.rank`.
+        this.autoDeduce(target.owner, mover /* survivor */, target.rank /* loser's known rank */);
         this.log(`${side} challenged and won at r${nr+1}c${nc+1}.`, mover.owner);
       } else if(res==='defender'){
         if(mover.rank==='FL'){winner=target.owner;reason='Enemy flag captured.';}
         this.board[r][c]=null; this.clearChecklist(mover.id);
+        // target survived, mover (attacker) died: the ATTACKER's owner learns their
+        // dead piece lost to a survivor of rank `target.rank`.
+        this.autoDeduce(mover.owner, target /* survivor */, mover.rank /* loser's known rank */);
         this.log(`${side} challenged and lost at r${nr+1}c${nc+1}.`, target.owner);
       } else {
         this.board[nr][nc]=null; this.board[r][c]=null; this.clearChecklist(mover.id); this.clearChecklist(target.id);
@@ -551,7 +717,33 @@ const game={
     if(winner){ this.render(); this.win(winner,reason); return; }
     this.turn = this.turn===BLUE?RED:BLUE;
     this.render(); this.renderSidePanel();
+    if(this.mode==='online' && this.turn===this.myColor) this.signalYourTurn();
     if(this.mode==='local') this.handoffLocal();
+  },
+
+  /* Auto-deduction: `loserColor` lost a piece of known rank `loserRank` to the
+     surviving enemy `survivor`. From that outcome, the loser can rule the
+     survivor's rank down to only those that could beat `loserRank`. We intersect
+     with what was already known. This uses ONLY the loser's own piece rank and the
+     result — never the survivor's true rank — so it leaks nothing. */
+  autoDeduce(loserColor, survivor, loserRank){
+    const list=this.checklists[loserColor];
+    const cur=list[survivor.id]||new Set(RANKS.map(x=>x.key));
+    const narrowed=new Set();
+    RANKS.forEach(rk=>{ if(cur.has(rk.key) && this.beatsRank(rk.key, loserRank)) narrowed.add(rk.key); });
+    // safety: never empty the set (the true rank is always a valid member)
+    list[survivor.id] = narrowed.size ? narrowed : cur;
+  },
+
+  /* Does enemy rank X defeat my rank R (my piece dies, X survives)? */
+  beatsRank(X, R){
+    if(X===R) return false;                 // equal ranks trade — no survivor
+    if(R==='SP') return X==='PV';            // only a Private beats a Spy
+    if(X==='SP') return R!=='PV';            // Spy beats all but the Private
+    if(X==='PV') return R==='SP';            // Private only beats the Spy
+    if(R==='PV') return !['PV','SP','FL'].includes(X); // Private beaten by any officer/general
+    const px=RANKS.find(r=>r.key===X).power, pr=RANKS.find(r=>r.key===R).power;
+    return px>pr;
   },
 
   resolve(att,def){
@@ -589,7 +781,7 @@ const game={
       <h3>Pass the device</h3>
       <p>Hand the game to <b style="color:var(--brass)">${this.turn.toUpperCase()}</b>. The other army's ranks are hidden from you.</p>
       <div class="big">Now playing: ${this.turn.toUpperCase()}</div>
-      <button class="btn solid" onclick="game.hideOverlay();game.render();game.renderSidePanel();">Ready</button>`);
+      <button class="btn solid" onclick="game.hideOverlay();game.render();game.renderSidePanel();game.signalYourTurn();">Ready</button>`);
   },
 
   /* ---------- deduction checklist ---------- */
@@ -633,15 +825,12 @@ const game={
   clearChecklist(id){ delete this.checklists.blue[id]; delete this.checklists.red[id]; if(this.focusedId===id)this.focusedId=null; },
 
   /* ---------- rendering ---------- */
-  buildLegend(){ document.getElementById('legend').innerHTML=RANKS.map(r=>`<div class="li"><span class="ins">${insignia(r.key)}</span>${r.short}</div>`).join(''); },
+  buildLegend(){ document.getElementById('legend').innerHTML=RANKS.map((r,i)=>`<div class="li"><span class="rk">${i+1}</span><span class="ins">${insignia(r.key)}</span>${r.short}</div>`).join(''); },
 
   render(){
     const el=document.getElementById('board'); el.innerHTML='';
     const view=this.viewColor();
-    let tl=this.turn.toUpperCase();
-    if(this.phase==='setup') tl='DEPLOY · '+this.setupColor.toUpperCase();
-    else if(this.mode==='online') tl += this.turn===this.myColor ? ' (you)' : ' (opponent)';
-    document.getElementById('turnLabel').textContent=tl;
+    this.updateTurnBadge();
     // Online: the Red player sees the board rotated 180° so their own army sits
     // at the bottom advancing upward — same experience Blue has. Only the DISPLAY
     // order changes; every cell's click still carries its true (r,c), so all game
@@ -739,7 +928,7 @@ const game={
         <button class="btn" onclick="game.showMenu();game.teardownPeer();game.setStatus('local','Local');">Cancel</button>
       </div>
       <div class="err" id="hostErr"></div>`);
-    try{ this.peer=new Peer('fieldcmd-'+code); }catch(e){ return this.netUnavailable(); }
+    try{ this.peer=new Peer('fieldcmd-'+code, peerOptions()); }catch(e){ return this.netUnavailable(); }
     this.peer.on('open',()=>{ /* waiting for a connection */ });
     this.peer.on('connection',(conn)=>{
       this.conn=conn; this.myColor=BLUE; this.mode='online';
@@ -761,7 +950,7 @@ const game={
     this.setStatus('amber','Connecting…');
     this.showOverlay(`<h3>Connecting…</h3><p>Looking for room ${code}.</p><div class="err" id="joinErr2"></div>
       <div class="menu-btns" style="margin-top:14px"><button class="btn" onclick="game.showMenu();game.teardownPeer();game.setStatus('local','Local');">Cancel</button></div>`);
-    try{ this.peer=new Peer(); }catch(e){ return this.netUnavailable(); }
+    try{ this.peer=new Peer(peerOptions()); }catch(e){ return this.netUnavailable(); }
     this.peer.on('open',()=>{
       const conn=this.peer.connect('fieldcmd-'+code,{reliable:true});
       this.conn=conn; this.myColor=RED; this.mode='online';
