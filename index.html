@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Field Command — a game of hidden rank</title>
+<title>Game of the Generals — Hidden Identities, Bluffing, and Deduction</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
   :root{
@@ -81,7 +81,7 @@
   .piece.blue{background:linear-gradient(160deg,#4a7ba0,#33566f);border:1px solid #5a8cb0}
   .piece.red{background:linear-gradient(160deg,#b8503a,#843525);border:1px solid #c86048}
   .piece.concealed{background:linear-gradient(160deg,#4a5a3c,#39472c);border:1px solid #6d7d5c}
-  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
   .piece.myturn{animation:bob 1.5s ease-in-out infinite}
   .piece.focused{outline:2px solid var(--brass);outline-offset:1px}
   .piece svg{width:52%;height:52%}
@@ -171,8 +171,8 @@
   .err{color:#e08a76;font-size:12px;font-family:"SF Mono",ui-monospace,monospace;margin-top:8px}
   .rules{text-align:left;margin-top:10px}
   .rule-block{margin-bottom:14px;padding-left:12px;border-left:2px solid var(--brass-dim)}
-  .rule-h{font-family:"SF Mono",ui-monospace,monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;
-    color:var(--brass);margin-bottom:5px}
+  .rule-h{font-family:"SF Mono",ui-monospace,monospace;font-size:14px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--brass);margin-bottom:6px}
   .rules p{font-size:12px;color:var(--parchment);line-height:1.5;margin-bottom:3px;font-family:"SF Mono",ui-monospace,monospace}
   .rules p b{color:var(--brass);font-weight:700}
 </style>
@@ -181,7 +181,7 @@
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <span class="emblem" id="emblem" title="Field Command">
+      <span class="emblem" id="emblem" title="Game of the Generals">
         <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
           <path d="M20 3 L34 8 V19 C34 28 20 37 20 37 C20 37 6 28 6 19 V8 Z"
                 fill="rgba(201,162,75,0.14)" stroke="#c9a24b" stroke-width="2" stroke-linejoin="round"/>
@@ -190,7 +190,7 @@
           <circle cx="20" cy="12" r="2.2" fill="#c9a24b"/>
         </svg>
       </span>
-      <h1>Field Command<span class="sub">a game of hidden rank · alpha</span></h1>
+      <h1>Game of the Generals<span class="sub">Hidden Identities, Bluffing, and Deduction · alpha</span></h1>
     </div>
     <div class="status-wrap">
       <span class="conn-label"><span class="dot" id="statusDot"></span><span id="statusText">Local</span></span>
@@ -280,12 +280,27 @@ function insignia(key){
     case 'SG': return s+chev(8)+chev(13)+'</svg>';
     case 'PV': return s+chev(10)+'</svg>';
     case 'SP': return s+'<circle cx="12" cy="9" r="3.2"/><path d="M7 20 C7 15 17 15 17 20"/></svg>';
-    case 'FL': return s+'<path d="M8 4 V20" stroke-width="1.6"/><path d="M8 5 H18 L15 8 L18 11 H8 Z" fill="#fff" stroke="none"/></svg>';
+    case 'FL': {
+      let sun='';
+      const cx=8.4, cy=12;
+      for(let i=0;i<8;i++){const a=i*Math.PI/4;
+        sun+='<line x1="'+(cx+Math.cos(a)*1.9).toFixed(1)+'" y1="'+(cy+Math.sin(a)*1.9).toFixed(1)+'" x2="'+(cx+Math.cos(a)*2.9).toFixed(1)+'" y2="'+(cy+Math.sin(a)*2.9).toFixed(1)+'" stroke="#1a1e14" stroke-width="0.55"/>';}
+      return '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'+
+        '<line x1="4" y1="4" x2="4" y2="21" stroke="#fff" stroke-width="1.3"/>'+
+        '<rect x="4.5" y="6" width="16" height="12" fill="none" stroke="#fff" stroke-width="1"/>'+
+        '<rect x="4.5" y="12" width="16" height="6" fill="#fff" fill-opacity="0.28" stroke="none"/>'+
+        '<path d="M4.5 6 L13 12 L4.5 18 Z" fill="#fff" stroke="#fff" stroke-width="0.5" stroke-linejoin="round"/>'+
+        sun+
+        '<circle cx="8.4" cy="12" r="1.6" fill="#1a1e14"/>'+
+        '<circle cx="6.0" cy="7.4" r="0.6" fill="#1a1e14"/>'+
+        '<circle cx="6.0" cy="16.6" r="0.6" fill="#1a1e14"/>'+
+        '<circle cx="11.3" cy="12" r="0.6" fill="#1a1e14"/>'+
+        '</svg>';
+    }
   }
   return s+'</svg>';
 }
 const CREST='<svg viewBox="0 0 24 24" class="crest" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.5 L20.5 5.5 V12 C20.5 17.2 12 21.5 12 21.5 C12 21.5 3.5 17.2 3.5 12 V5.5 Z" fill="rgba(201,162,75,0.22)" stroke="#c9a24b" stroke-width="1.6" stroke-linejoin="round"/><text x="12" y="15.5" text-anchor="middle" font-size="9" font-weight="700" fill="#e8e2d0" font-family="monospace">?</text></svg>';
-const BUILTIN_LAYOUTS={"Balanced Line":[[0,0,"FL"],[0,1,"G1"],[0,2,"FG"],[0,3,"G4"],[0,4,"G3"],[0,5,"G2"],[0,6,"CO"],[0,7,"LC"],[0,8,"MA"],[1,0,"CP"],[1,1,"1L"],[1,2,"2L"],[1,3,"SG"],[1,4,"SP"],[1,5,"SP"],[1,6,"PV"],[1,7,"PV"],[1,8,"PV"],[2,3,"PV"],[2,4,"PV"],[2,5,"PV"]],"Flag Fortress":[[0,0,"G3"],[0,1,"FG"],[0,2,"G4"],[0,3,"FL"],[0,4,"G2"],[0,5,"G1"],[0,6,"CO"],[0,7,"LC"],[0,8,"MA"],[1,0,"PV"],[1,1,"PV"],[1,2,"PV"],[1,3,"SP"],[1,4,"PV"],[1,5,"SP"],[1,6,"PV"],[1,7,"CP"],[1,8,"1L"],[2,3,"PV"],[2,4,"2L"],[2,5,"SG"]],"Spy Ambush":[[0,0,"MA"],[0,1,"LC"],[0,2,"CO"],[0,3,"G1"],[0,4,"G2"],[0,5,"G3"],[0,6,"G4"],[0,7,"FG"],[0,8,"FL"],[1,0,"SG"],[1,1,"2L"],[1,2,"1L"],[1,3,"CP"],[1,4,"PV"],[1,5,"PV"],[1,6,"PV"],[1,7,"PV"],[1,8,"PV"],[2,3,"SP"],[2,4,"SP"],[2,5,"PV"]]};
 
 const ROWS=8, COLS=9, RED='red', BLUE='blue';
 /* ============================================================
@@ -525,7 +540,7 @@ const game={
   /* ---------- rules / how-to-play modal ---------- */
   showRules(){
     this.showOverlay(`
-      <h3 style="margin-bottom:4px">How to play</h3>
+      <h3 style="margin-bottom:4px">How to Play</h3>
       <div class="rules">
         <div class="rule-block">
           <div class="rule-h">Goal</div>
@@ -575,7 +590,7 @@ const game={
 
   loadLayout(name, builtin){
     const color=this.setupColor;
-    const src = builtin ? BUILTIN_LAYOUTS[name] : (this.loadStore()[name]);
+    const src = this.loadStore()[name];
     if(!src) return;
     this.clearSetup();                 // reset this color's rows + pool
     src.forEach(([rb,c,rank])=>{
@@ -598,18 +613,22 @@ const game={
     const host=document.getElementById('deductionBody');
     const color=this.setupColor;
     const placed=this.placedCount(color);
+    // List every remaining piece individually (a placed piece simply leaves the list).
     const rows=RANKS.map(rk=>{
       const left=this.pool[color][rk.key];
-      const cls='rs-row'+(this.selRank===rk.key?' active':'')+(left<=0?' done':'');
-      return `<div class="${cls}" onclick="game.pickRank('${rk.key}')">
-        <span class="ins">${insignia(rk.key)}</span>
-        <span class="nm">${rk.short}</span>
-        <span class="ct">${left}/${rk.count}</span></div>`;
+      let out='';
+      for(let i=0;i<left;i++){
+        const cls='rs-row'+(this.selRank===rk.key?' active':'');
+        out+=`<div class="${cls}" onclick="game.pickRank('${rk.key}')">
+          <span class="ins">${insignia(rk.key)}</span>
+          <span class="nm">${rk.short}</span></div>`;
+      }
+      return out;
     }).join('');
     host.innerHTML=`
       <div class="setup-bar"><b style="color:var(--brass)">${color.toUpperCase()}</b> deployment — ${placed}/21 placed.
-      ${this.selRank?'Placing <b style="color:var(--brass)">'+shortOf(this.selRank)+'</b> — click a highlighted square.':'Pick a rank below.'}</div>
-      <div class="roster">${rows}</div>
+      ${this.selRank?'Placing <b style="color:var(--brass)">'+shortOf(this.selRank)+'</b> — click a highlighted square.':'Pick a piece below.'}</div>
+      <div class="roster">${rows||'<div class="lay-empty">All pieces placed.</div>'}</div>
       <div class="setup-actions">
         <button class="btn small" onclick="game.autoFill()">Auto-fill rest</button>
         <button class="btn small" onclick="game.clearSetup()">Clear</button>
@@ -619,17 +638,13 @@ const game={
   },
 
   layoutsMarkup(){
-    const builtinRows=Object.keys(BUILTIN_LAYOUTS).map(n=>
-      `<div class="lay-row builtin"><span class="lname" onclick="game.loadLayout('${n}',true)">${n}</span></div>`).join('');
     const saved=this.loadStore();
     const names=Object.keys(saved);
     const savedRows = names.length
       ? names.map(n=>`<div class="lay-row"><span class="lname" onclick="game.loadLayout('${this.esc(n)}',false)">${this.esc(n)}</span><span class="lay-x" title="Delete" onclick="game.deleteLayout('${this.esc(n)}')">\u2715</span></div>`).join('')
       : `<div class="lay-empty">No saved layouts yet.</div>`;
     return `<div class="lay-sec">
-      <div class="lay-h">Preset formations</div>
-      ${builtinRows}
-      <div class="lay-h" style="margin-top:12px">Your saved layouts</div>
+      <div class="lay-h">Your saved layouts</div>
       ${savedRows}
       <div class="lay-save">
         <input placeholder="Name this layout" value="${this.esc(this.layoutNameDraft||'')}" oninput="game.layoutNameDraft=this.value" onkeydown="if(event.key==='Enter')game.saveLayout()">
@@ -860,7 +875,6 @@ const game={
           const myTurn = this.phase==='play' && !this.gameOver &&
                          (this.mode==='local' ? true : this.turn===this.myColor);
           pd.className='piece '+p.owner+(myTurn?' myturn':'');
-          if(myTurn) pd.style.animationDelay=(((r+c)%6)*0.1)+'s';  // gentle wave, not unison
           pd.innerHTML=insignia(p.rank)+`<div class="lbl">${shortOf(p.rank)}</div>`;
         } else {
           pd.className='piece concealed'+(p.id===this.focusedId?' focused':'');
@@ -924,7 +938,7 @@ const game={
   /* ---------- menus ---------- */
   showMenu(){
     this.showOverlay(`
-      <h3>Field Command</h3>
+      <h3>Game of the Generals</h3>
       <p>Play across two devices, or pass & play on this one.</p>
       <div class="menu-btns">
         <button class="btn solid" onclick="game.hostGame()">Host online match</button>
